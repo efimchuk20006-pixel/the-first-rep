@@ -191,81 +191,34 @@ def filter_lessons_by_teacher(lines: List[str], teacher_pattern: str) -> Dict[st
     filtered = filter(lambda l: pattern.search(l.teacher), lessons)
     # map по имени преподавателя
     return {lesson.teacher: lesson for lesson in filtered}
-def read_lines_from_file(path: str = "test.txt") -> List[str]:
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return f.readlines()
-    except FileNotFoundError:
-        return []
-
-
-def append_line_to_file(line: str, path: str = "test.txt") -> None:
-    # убедимся, что добавляется перевод строки
-    with open(path, "a", encoding="utf-8") as f:
-        if not line.endswith("\n"):
-            line = line + "\n"
-        f.write(line)
-
-
-def show_raw_data(path: str = "test.txt") -> None:
-    lines = read_lines_from_file(path)
-    if not lines:
-        print(f"файл {path} пуст или не найден")
-        return
-    print(f"Сырые строки в {path}:")
-    for i, l in enumerate(lines, 1):
-        print(f"{i}: {l.rstrip()}")
-
-
-def show_parsed_data(path: str = "test.txt") -> None:
-    lines = read_lines_from_file(path)
-    if not lines:
-        print(f"файл {path} пуст или не найден")
-        return
-    print("Распарсенные записи:")
-    for i, l in enumerate(lines, 1):
-        try:
-            lesson = parse_lesson(l)
-            print(f"{i}: {lesson}")
-        except Exception as e:
-            print(f"{i}: ошибка парсинга: {e}")
 
 
 def main():
     menu = (
-        "1) Внести данные",
-        "2) Показать сырые данные (test.txt)",
-        "3) Показать распарсенные данные",
+        "1) Внесasdasdasdти данные",
+        "2) Показать сырыsaasdsadsaе данные (test.txt)",
+        "3) Показать распарсенные дasdsadsadанные",
         "4) Выход",
     )
-
+    
     while True:
-        print("\n=== Меню ===")
-        for item in menu:
-            print(item)
-        choice = input("Выберите опцию (1-4): ").strip()
-
-        if choice == "1":
-            print('Введите строку в формате: учебное занятие гггг.мм.дд "аудитория" "фамилия и.е."')
-            line = input("Строка (или пусто для отмены): ")
-            if not line:
-                print("Отменено")
-                continue
-            append_line_to_file(line)
-            print("Запись добавлена в test.txt")
-
-        elif choice == "2":
-            show_raw_data()
-
-        elif choice == "3":
-            show_parsed_data()
-
-        elif choice == "4":
-            print("Выход")
+        # чтение данных из файла test.txt
+        try:
+            with open("test.txt", "r", encoding="utf-8") as f:
+                lines = f.readlines()
+        except FileNotFoundError:
+            print("ошибка: файл test.txt не найден")
             break
 
-        else:
-            print("Неверный выбор, попробуйте ещё раз.")
+        print(f"найдено {len(lines)} строк в файле test.txt\n")
+
+        # парсинг всех строк
+        for i, line in enumerate(lines, 1):
+            try:
+                lesson = parse_lesson(line)
+                print(f"{i}. {lesson}")
+            except ValueError as e:
+                print(f"{i}. ошибка парсинга: {e}")
 
 
 if __name__ == "__main__":
