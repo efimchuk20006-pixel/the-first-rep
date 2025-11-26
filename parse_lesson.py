@@ -214,23 +214,31 @@ def filter_lessons_by_teacher(lines: List[str], teacher_pattern: str) -> Dict[st
 
 
 def main():
-    # чтение данных из файла test.txt
-    try:
-        with open("test.txt", "r", encoding="utf-8") as f:
-            lines = f.readlines()
-    except FileNotFoundError:
-        print("ошибка: файл test.txt не найден")
-        return
-
-    print(f"найдено {len(lines)} строк в файле test.txt\n")
-
-    # парсинг всех строк
-    for i, line in enumerate(lines, 1):
+    menu = (
+        "1) Внесasdasdasdти данные",
+        "2) Показать сырыsaasdsadsaе данные (test.txt)",
+        "3) Показать распарсенные дasdsadsadанные",
+        "4) Выход",
+    )
+    
+    while True:
+        # чтение данных из файла test.txt
         try:
-            lesson = parse_lesson(line)
-            print(f"{i}. {lesson}")
-        except ValueError as e:
-            print(f"{i}. ошибка парсинга: {e}")
+            with open("test.txt", "r", encoding="utf-8") as f:
+                lines = f.readlines()
+        except FileNotFoundError:
+            print("ошибка: файл test.txt не найден")
+            break
+
+        print(f"найдено {len(lines)} строк в файле test.txt\n")
+
+        # парсинг всех строк
+        for i, line in enumerate(lines, 1):
+            try:
+                lesson = parse_lesson(line)
+                print(f"{i}. {lesson}")
+            except ValueError as e:
+                print(f"{i}. ошибка парсинга: {e}")
 
 
 if __name__ == "__main__":
