@@ -22,6 +22,7 @@ class Lesson:
 
 
 def parse_lesson(line: str) -> Lesson:
+def parse_lesson(line: str) -> Lesson:
     """
     функция разбора текстовой строки и создания объекта lesson.
     используется регулярное выражение для парсинга.
@@ -29,6 +30,7 @@ def parse_lesson(line: str) -> Lesson:
     ожидаемый формат строки:
         учебныезанятия 2025.03.15 "а-104" "иванов и.е."
     """
+    text = line.strip()
     text = line.strip()
 
     def parse_date_from_text(s: str) -> date:
@@ -191,23 +193,85 @@ def filter_lessons_by_teacher(lines: List[str], teacher_pattern: str) -> Dict[st
     filtered = filter(lambda l: pattern.search(l.teacher), lessons)
     # map по имени преподавателя
     return {lesson.teacher: lesson for lesson in filtered}
+def read_lines_from_file(path: str = "test.txt") -> List[str]:
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return f.readlines()
+    except FileNotFoundError:
+        return []
+
+
+def append_line_to_file(line: str, path: str = "test.txt") -> None:
+    # убедимся, что добавляется перевод строки
+    with open(path, "a", encoding="utf-8") as f:
+        if not line.endswith("\n"):
+            line = line + "\n"
+        f.write(line)
+
+
+def show_raw_data(path: str = "test.txt") -> None:
+    lines = read_lines_from_file(path)
+    if not lines:
+        print(f"файл {path} пуст или не найден")
+        return
+    print(f"Сырые строки в {path}:")
+    for i, l in enumerate(lines, 1):
+        print(f"{i}: {l.rstrip()}")
+
+
+def show_parsed_data(path: str = "test.txt") -> None:
+    lines = read_lines_from_file(path)
+    if not lines:
+        print(f"файл {path} пуст или не найден")
+        return
+    print("Распарсенные записи:")
+    for i, l in enumerate(lines, 1):
+        try:
+            lesson = parse_lesson(l)
+            print(f"{i}: {lesson}")
+        except Exception as e:
+            print(f"{i}: ошибка парсинга: {e}")
 
 
 def main():
-    print("введите описание учебного занятия в одной строке.")
-    print('формат: учебное занятие гггг.мм.дд "аудитория" "фамилия и.е."')
-    print('например: учебное занятие 2025.03.15 "а-104" "иванов и.е."')
-    print()
+    menu = (
+        "1) Внести данные",
+        "2) Показать сырые данные (test.txt)",
+        "3) Показать распарсенные данные",
+        "4) Выход",
+    )
 
-    line = input("строка: ")
+    while True:
+        print("\n=== Меню ===")
+        for item in menu:
+            print(item)
+        choice = input("Выберите опцию (1-4): ").strip()
 
-    # объект на основании строки
-    lesson = parse_lesson(line)
+        if choice == "1":
+            print('Введите строку в формате: учебное занятие гггг.мм.дд "аудитория" "фамилия и.е."')
+            line = input("Строка (или пусто для отмены): ")
+            if not line:
+                print("Отменено")
+                continue
+            append_line_to_file(line)
+            print("Запись добавлена в test.txt")
 
-    print()
-    print("сформированный объект:")
-    print(lesson)
+        elif choice == "2":
+            show_raw_data()
+
+        elif choice == "3":
+            show_parsed_data()
+
+        elif choice == "4":
+            print("Выход")
+            break
+
+        else:
+            print("Неверный выбор, попробуйте ещё раз.")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print('\nПрограмма прервана пользователем')
