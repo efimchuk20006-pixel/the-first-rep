@@ -21,18 +21,17 @@ class Lesson:
         return f"Учебное занятие: дата={self.date}, аудитория={self.room}, преподаватель={self.teacher}"
 
 
-class LessonParser:
+def parse_lesson(line: str) -> Lesson:
     """
-    класс для разбора текстовой строки и создания объекта Lesson.
+    функция разбора текстовой строки и создания объекта lesson.
     используется регулярное выражение для парсинга.
 
     ожидаемый формат строки:
         учебныезанятия 2025.03.15 "а-104" "иванов и.е."
     """
+    text = line.strip()
 
-    @staticmethod
     def parse_date_from_text(s: str) -> date:
-        """Разбор даты из текста."""
         # популярные форматы: yyyy.mm.dd, yyyy-mm-dd, dd.mm.yyyy, dd/mm/yyyy, yyyy/mm/dd
         # ищем сначала варианты с годом впереди, затем варианты с годом в конце.
         # возвращаем объект date при первом успешном совпадении.
@@ -65,9 +64,7 @@ class LessonParser:
 
         raise ValueError(f"не удалось распознать дату в строке: {s}")
 
-    @staticmethod
     def parse_room_from_text(s: str) -> str:
-        """Разбор номера аудитории из текста."""
         # типичные обозначения аудитории: a-104, а104, а-104, аудитория 104, "а-104"
         # ищем буквенно-цифровое обозначение с буквой и цифрами
         m = re.search(r"\b[АA]-?\d{1,4}\b", s, flags=re.IGNORECASE)
@@ -89,97 +86,80 @@ class LessonParser:
 
         raise ValueError(f"не удалось распознать аудиторию в строке: {s}")
 
-    @staticmethod
-    def normalize_initials(a: str) -> str:
-        """Привести инициалы к формату и.е."""
-        chars = re.findall(r"([A-Za-zА-Яа-яЁё])", a)
-        if len(chars) >= 2:
-            i1 = chars[0].upper()
-            i2 = chars[1].upper()
-            return f"{i1}.{i2}."
-        return a
-
-    @staticmethod
-    def try_parse_segment(seg: str) -> str:
-        """Попытка разбора сегмента как имени преподавателя."""
-        # фамилия + инициалы (в разных регистрах и с пробелами)
-        m = re.search(r"([А-ЯЁа-яё]+)\s+([А-ЯЁа-яё])\.?\s*([А-ЯЁа-яё])\.?", seg, flags=re.IGNORECASE)
-        if m:
-            fam, a1, a2 = m.groups()
-            fam = fam.strip().capitalize()
-            initials = f"{a1.upper()}.{a2.upper()}."
-            return f"{fam} {initials}"
-
-        # фамилия + инициалы слитно (иванов и.е.)
-        m = re.search(r"([А-ЯЁа-яё]+)\s+([А-ЯЁа-яё]\.[А-ЯЁа-яё]\.)", seg, flags=re.IGNORECASE)
-        if m:
-            fam, initials = m.groups()
-            fam = fam.strip().capitalize()
-            initials = LessonParser.normalize_initials(initials)
-            return f"{fam} {initials}"
-
-        # инициалы перед фамилией
-        m = re.search(r"([А-ЯЁа-яё]\.?\s*[А-ЯЁа-яё]\.?)\s*([А-ЯЁа-яё]+)", seg, flags=re.IGNORECASE)
-        if m:
-            initials, fam = m.groups()
-            fam = fam.strip().capitalize()
-            initials = LessonParser.normalize_initials(initials)
-            return f"{fam} {initials}"
-
-        # только инициалы
-        m = re.search(r"\b([А-ЯЁа-яё])\.?\s*([А-ЯЁа-яё])\.?\b", seg, flags=re.IGNORECASE)
-        if m:
-            a1, a2 = m.groups()
-            return f"{a1.upper()}.{a2.upper()}."
-
-        # англ. варианты
-        m = re.search(r"([A-Z][a-z]+)\s+([A-Z])\.?\s*([A-Z])\.?", seg)
-        if m:
-            fam, a1, a2 = m.groups()
-            return f"{fam} {a1}.{a2}."
-
-        return None
-
-    @staticmethod
     def parse_teacher_from_text(s: str) -> str:
-        """Разбор имени преподавателя из текста."""
+        # пробуем сначала извлечь текст из кавычек — часто имя даётся в кавычках
+        def normalize_initials(a: str) -> str:
+            # привести инициалы к формату и.е.
+            chars = re.findall(r"([A-Za-zА-Яа-яЁё])", a)
+            if len(chars) >= 2:
+                i1 = chars[0].upper()
+                i2 = chars[1].upper()
+                return f"{i1}.{i2}."
+            return a
+
         # содержимое в кавычках (двойных и одинарных)
         quoted = re.findall(r'"([^\"]+)"|\'([^\']+)\'', s)
         # quoted — список кортежей; приводим к простому списку непустых
         qlist = [q[0] or q[1] for q in quoted if q[0] or q[1]]
 
+        def try_parse_segment(seg: str):
+            # фамилия + инициалы (в разных регистрах и с пробелами)
+            m = re.search(r"([А-ЯЁа-яё]+)\s+([А-ЯЁа-яё])\.?\s*([А-ЯЁа-яё])\.?", seg, flags=re.IGNORECASE)
+            if m:
+                fam, a1, a2 = m.groups()
+                fam = fam.strip().capitalize()
+                initials = f"{a1.upper()}.{a2.upper()}."
+                return f"{fam} {initials}"
+
+            # фамилия + инициалы слитно (иванов и.е.)
+            m = re.search(r"([А-ЯЁа-яё]+)\s+([А-ЯЁа-яё]\.[А-ЯЁа-яё]\.)", seg, flags=re.IGNORECASE)
+            if m:
+                fam, initials = m.groups()
+                fam = fam.strip().capitalize()
+                initials = normalize_initials(initials)
+                return f"{fam} {initials}"
+
+            # инициалы перед фамилией
+            m = re.search(r"([А-ЯЁа-яё]\.?\s*[А-ЯЁа-яё]\.?)\s*([А-ЯЁа-яё]+)", seg, flags=re.IGNORECASE)
+            if m:
+                initials, fam = m.groups()
+                fam = fam.strip().capitalize()
+                initials = normalize_initials(initials)
+                return f"{fam} {initials}"
+
+            # только инициалы
+            m = re.search(r"\b([А-ЯЁа-яё])\.?\s*([А-ЯЁа-яё])\.?\b", seg, flags=re.IGNORECASE)
+            if m:
+                a1, a2 = m.groups()
+                return f"{a1.upper()}.{a2.upper()}."
+
+            # англ. варианты
+            m = re.search(r"([A-Z][a-z]+)\s+([A-Z])\.?\s*([A-Z])\.?", seg)
+            if m:
+                fam, a1, a2 = m.groups()
+                return f"{fam} {a1}.{a2}."
+
+            return None
+
         # пробуем сначала сегменты в кавычках
         for seg in qlist:
-            res = LessonParser.try_parse_segment(seg)
+            res = try_parse_segment(seg)
             if res:
                 return res
 
         # если в кавычках ничего нет
-        res = LessonParser.try_parse_segment(s)
+        res = try_parse_segment(s)
         if res:
             return res
 
         raise ValueError(f"не удалось распознать преподавателя в строке: {s}")
 
-    @classmethod
-    def parse(cls, line: str) -> Lesson:
-        """Разбор строки и создание объекта Lesson."""
-        text = line.strip()
-        dt = cls.parse_date_from_text(text)
-        room = cls.parse_room_from_text(text)
-        teacher = cls.parse_teacher_from_text(text)
-        return Lesson(dt, room, teacher)
+    # выполняем извлечение
+    dt = parse_date_from_text(text)
+    room = parse_room_from_text(text)
+    teacher = parse_teacher_from_text(text)
 
-
-def parse_lesson(line: str) -> Lesson:
-    """
-    функция разбора текстовой строки и создания объекта lesson.
-    используется регулярное выражение для парсинга.
-
-    ожидаемый формат строки:
-        учебныезанятия 2025.03.15 "а-104" "иванов и.е."
-    """
-    return LessonParser.parse(line)
+    return Lesson(dt, room, teacher)
 
 
 def parse_multiple_lessons(lines: List[str]) -> List[Lesson]:
@@ -242,4 +222,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print('\nПрограмма прервана пользователем')
