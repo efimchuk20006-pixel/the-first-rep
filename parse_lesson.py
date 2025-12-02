@@ -68,24 +68,22 @@ class LessonParser:
     @staticmethod
     def parse_room_from_text(s: str) -> str:
         """Разбор номера аудитории из текста."""
-        # типичные обозначения аудитории: a-104, а104, а-104, аудитория 104, "а-104"
-        # ищем буквенно-цифровое обозначение с буквой и цифрами
+        # в кавычках: "а-104" или 'а-104'
+        m = re.search(r'["\']([^"\']+)["\']', s)
+        if m:
+            candidate = m.group(1)
+            if re.search(r"[0-9]", candidate):
+                return candidate
+        
+        # типичные обозначения: a-104, а104, а-104
         m = re.search(r"\b[АA]-?\d{1,4}\b", s, flags=re.IGNORECASE)
         if m:
             return m.group(0)
 
-        # по ключевому слову 'аудитория' или 'room'
-        m = re.search(r"(?:аудитори(?:я|и)|auditorium|room)[:\s\"]+([A-Za-zА-Яа-я0-9\-]+)", s, flags=re.IGNORECASE)
+        # по ключевому слову 'аудитория'
+        m = re.search(r"(?:аудитори[яи]|room)[:\s\"]+([A-Za-zА-Яа-я0-9\-]+)", s, flags=re.IGNORECASE)
         if m:
             return m.group(1)
-
-        # в кавычках: "а-104"
-        m = re.search(r'"([^\"]+)"', s)
-        if m:
-            candidate = m.group(1)
-            # если внутри кавычек видим цифры или букву+цифры — считаем аудиторией
-            if re.search(r"[0-9]", candidate):
-                return candidate
 
         raise ValueError(f"не удалось распознать аудиторию в строке: {s}")
 
@@ -102,30 +100,34 @@ class LessonParser:
     @staticmethod
     def try_parse_segment(seg: str) -> str:
         """Попытка разбора сегмента как имени преподавателя."""
-        # фамилия + инициалы (в разных регистрах и с пробелами)
-        m = re.search(r"([А-ЯЁа-яё]+)\s+([А-ЯЁа-яё])\.?\s*([А-ЯЁа-яё])\.?", seg, flags=re.IGNORECASE)
-        if m:
-            fam, a1, a2 = m.groups()
-            fam = fam.strip().capitalize()
-            initials = f"{a1.upper()}.{a2.upper()}."
-            return f"{fam} {initials}"
-
-        # фамилия + инициалы слитно (иванов и.е.)
-        m = re.search(r"([А-ЯЁа-яё]+)\s+([А-ЯЁа-яё]\.[А-ЯЁа-яё]\.)", seg, flags=re.IGNORECASE)
-        if m:
-            fam, initials = m.groups()
-            fam = fam.strip().capitalize()
-            initials = LessonParser.normalize_initials(initials)
-            return f"{fam} {initials}"
-
-        # инициалы перед фамилией
-        m = re.search(r"([А-ЯЁа-яё]\.?\s*[А-ЯЁа-яё]\.?)\s*([А-ЯЁа-яё]+)", seg, flags=re.IGNORECASE)
-        if m:
-            initials, fam = m.groups()
-            fam = fam.strip().capitalize()
-            initials = LessonParser.normalize_initials(initials)
-            return f"{fam} {initials}"
-
+        # фамилия + инициалы (разные форматы)
+        patterns = [
+            r"([А-ЯЁа-яё]+)\s+([А-ЯЁа-яё])\.?\s*([А-ЯЁа-яё])\.?",  # фамилия И. О.
+            r"([А-ЯЁа-яё]+)\s+([А-ЯЁа-яё]\.[А-ЯЁа-яё]\.)",  # фамилия и.о.
+            r"([А-ЯЁа-яё]\.?\s*[А-ЯЁа-яё]\.?)\s*([А-ЯЁа-яё]+)",  # И.О. фамилия
+            r"([A-Z][a-z]+)\s+([A-Z])\.?\s*([A-Z])\.?",  # англ. Surname I. O.
+        ]
+        
+        for pattern in patterns:
+            m = re.search(pattern, seg, flags=re.IGNORECASE)
+            if m:
+                groups = m.groups()
+                if len(groups) == 3:  # фамилия + 2 инициала
+                    fam, a1, a2 = groups
+                    fam = fam.strip().capitalize()
+                    return f"{fam} {a1.upper()}.{a2.upper()}."
+                elif len(groups) == 2:  # фамилия + инициалы слитно или инициалы + фамилия
+                    if re.search(r"\.", groups[1]):  # инициалы слитно (и.о.)
+                        fam, initials = groups
+                        fam = fam.strip().capitalize()
+                        initials = LessonParser.normalize_initials(initials)
+                        return f"{fam} {initials}"
+                    else:  # инициалы + фамилия
+                        initials, fam = groups
+                        fam = fam.strip().capitalize()
+                        initials = LessonParser.normalize_initials(initials)
+                        return f"{fam} {initials}"
+        
         # только инициалы
         m = re.search(r"\b([А-ЯЁа-яё])\.?\s*([А-ЯЁа-яё])\.?\b", seg, flags=re.IGNORECASE)
         if m:
@@ -253,30 +255,47 @@ def show_parsed_data(path: str = "test.txt") -> None:
 
 def main():
     menu = (
-        "1) Внесasdasdasdти данные",
-        "2) Показать сырыsaasdsadsaе данные (test.txt)",
-        "3) Показать распарсенные дasdsadsadанные",
+        "1) Внести данные",
+        "2) Показать сырые данные (test.txt)",
+        "3) Показать распарсенные данные",
         "4) Выход",
     )
     
     while True:
-        # чтение данных из файла test.txt
-        try:
-            with open("test.txt", "r", encoding="utf-8") as f:
-                lines = f.readlines()
-        except FileNotFoundError:
-            print("ошибка: файл test.txt не найден")
+        print("\n" + "="*50)
+        print("МЕНЮ")
+        print("="*50)
+        for option in menu:
+            print(option)
+        print("="*50)
+        
+        choice = input("Выберите опцию (1-4): ").strip()
+        
+        if choice == "1":
+            # Внести данные
+            print('Введите строку в формате: учебное занятие гггг.мм.дд "аудитория" "фамилия и.е."')
+            line = input("Строка (или пусто для отмены): ").strip()
+            if line:
+                append_line_to_file(line)
+                print("✓ Запись добавлена в test.txt")
+            else:
+                print("✗ Отменено")
+        
+        elif choice == "2":
+            # Показать сырые данные
+            show_raw_data()
+        
+        elif choice == "3":
+            # Показать распарсенные данные
+            show_parsed_data()
+        
+        elif choice == "4":
+            # Выход
+            print("До свидания!")
             break
-
-        print(f"найдено {len(lines)} строк в файле test.txt\n")
-
-        # парсинг всех строк
-        for i, line in enumerate(lines, 1):
-            try:
-                lesson = parse_lesson(line)
-                print(f"{i}. {lesson}")
-            except ValueError as e:
-                print(f"{i}. ошибка парсинга: {e}")
+        
+        else:
+            print("✗ Неверный выбор. Введите 1, 2, 3 или 4.")
 
 
 if __name__ == "__main__":
