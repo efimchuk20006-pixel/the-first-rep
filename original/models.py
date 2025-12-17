@@ -1,6 +1,4 @@
 from datetime import date
-
-
 class Lesson:
     """
     класс "учебное занятие".
@@ -13,6 +11,5 @@ class Lesson:
         self.date = date_
         self.room = room
         self.teacher = teacher
-
     def __str__(self):
         return f"Учебное занятие: дата={self.date}, аудитория={self.room}, преподаватель={self.teacher}"
